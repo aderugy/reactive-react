@@ -1,159 +1,115 @@
 "use client";
 
-import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import Link from "next/link";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import FileTree from "@/components/FileTree";
+import ReactFileEvaluator from "@/components/ReactFileEvaluator";
+import { FileNode } from "@/components/FileTree"; // Assurez-vous d'exporter le type dans FileTree
 
 export default function Home() {
+  const [projectStructure, setProjectStructure] = useState<FileNode[]>([]);
+  const [selectedContent, setSelectedContent] = useState("");
+
+  const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const structure = await parseFolderStructure(files);
+    setProjectStructure(structure);
+  };
+
+  const parseFolderStructure = async (fileList: FileList): Promise<FileNode[]> => {
+    const structure: Record<string, FileNode> = {};
+    
+    // Parcourir tous les fichiers du dossier uploadé
+    for (const file of Array.from(fileList)) {
+      const path = file.webkitRelativePath;
+      const parts = path.split('/');
+      
+      let currentLevel = structure;
+      let currentPath = '';
+      
+      // Construire l'arborescence niveau par niveau
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isFile = i === parts.length - 1;
+        const id = currentPath + part;
+        
+        // Créer un nouveau nœud s'il n'existe pas
+        if (!currentLevel[id]) {
+          currentLevel[id] = {
+            id,
+            name: part,
+            type: isFile ? "file" : "folder",
+            children: isFile ? undefined : {},
+          };
+        }
+        
+        // Descendre dans l'arborescence
+        if (!isFile) {
+          currentLevel = currentLevel[id].children as Record<string, FileNode>;
+          currentPath = id + '/';
+        } else {
+          // Lire le contenu du fichier
+          currentLevel[id].content = await file.text();
+        }
+      }
+    }
+    
+    // Convertir l'objet en tableau récursivement
+    const convertToArray = (nodes: Record<string, FileNode>): FileNode[] => {
+      return Object.values(nodes).map(node => ({
+        ...node,
+        children: node.children ? convertToArray(node.children) : undefined,
+      }));
+    };
+    
+    return convertToArray(structure);
+  };
+
   return (
-    <>
-      <header className="sticky top-0 z-10 bg-background p-4 border-b-2 border-slate-200 dark:border-slate-800 flex flex-row justify-between items-center">
-        Convex + Next.js + Convex Auth
-        <SignOutButton />
-      </header>
-      <main className="p-8 flex flex-col gap-8">
-        <h1 className="text-4xl font-bold text-center">
-          Convex + Next.js + Convex Auth
-        </h1>
-        <Content />
-      </main>
-    </>
-  );
-}
-
-function SignOutButton() {
-  const { isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuthActions();
-  const router = useRouter();
-  return (
-    <>
-      {isAuthenticated && (
-        <button
-          className="bg-slate-200 dark:bg-slate-800 text-foreground rounded-md px-2 py-1"
-          onClick={() =>
-            void signOut().then(() => {
-              router.push("/signin");
-            })
-          }
-        >
-          Sign out
-        </button>
-      )}
-    </>
-  );
-}
-
-function Content() {
-  const { viewer, numbers } =
-    useQuery(api.myFunctions.listNumbers, {
-      count: 10,
-    }) ?? {};
-  const addNumber = useMutation(api.myFunctions.addNumber);
-
-  if (viewer === undefined || numbers === undefined) {
-    return (
-      <div className="mx-auto">
-        <p>loading... (consider a loading skeleton)</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-8 max-w-lg mx-auto">
-      <p>Welcome {viewer ?? "Anonymous"}!</p>
-      <p>
-        Click the button below and open this page in another window - this data
-        is persisted in the Convex cloud database!
-      </p>
-      <p>
-        <button
-          className="bg-foreground text-background text-sm px-4 py-2 rounded-md"
-          onClick={() => {
-            void addNumber({ value: Math.floor(Math.random() * 10) });
-          }}
-        >
-          Add a random number
-        </button>
-      </p>
-      <p>
-        Numbers:{" "}
-        {numbers?.length === 0
-          ? "Click the button!"
-          : (numbers?.join(", ") ?? "...")}
-      </p>
-      <p>
-        Edit{" "}
-        <code className="text-sm font-bold font-mono bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded-md">
-          convex/myFunctions.ts
-        </code>{" "}
-        to change your backend
-      </p>
-      <p>
-        Edit{" "}
-        <code className="text-sm font-bold font-mono bg-slate-200 dark:bg-slate-800 px-1 py-0.5 rounded-md">
-          app/page.tsx
-        </code>{" "}
-        to change your frontend
-      </p>
-      <p>
-        See the{" "}
-        <Link href="/server" className="underline hover:no-underline">
-          /server route
-        </Link>{" "}
-        for an example of loading data in a server component
-      </p>
-      <div className="flex flex-col">
-        <p className="text-lg font-bold">Useful resources:</p>
-        <div className="flex gap-2">
-          <div className="flex flex-col gap-2 w-1/2">
-            <ResourceCard
-              title="Convex docs"
-              description="Read comprehensive documentation for all Convex features."
-              href="https://docs.convex.dev/home"
-            />
-            <ResourceCard
-              title="Stack articles"
-              description="Learn about best practices, use cases, and more from a growing
-            collection of articles, videos, and walkthroughs."
-              href="https://www.typescriptlang.org/docs/handbook/2/basic-types.html"
-            />
-          </div>
-          <div className="flex flex-col gap-2 w-1/2">
-            <ResourceCard
-              title="Templates"
-              description="Browse our collection of templates to get started quickly."
-              href="https://www.convex.dev/templates"
-            />
-            <ResourceCard
-              title="Discord"
-              description="Join our developer community to ask questions, trade tips & tricks,
-            and show off your projects."
-              href="https://www.convex.dev/community"
-            />
-          </div>
+    <main className="flex h-screen bg-white">
+      {/* Panneau gauche - Arborescence */}
+      <div className="w-64 border-r p-4 overflow-auto bg-gray-50">
+        <h2 className="font-bold mb-4 text-lg">Project Files</h2>
+        
+        {/* Bouton d'upload de dossier */}
+        <div className="mb-4">
+          <label className="block mb-2 text-sm font-medium text-gray-700">
+            Upload un dossier
+          </label>
+          <input 
+            type="file"
+            className="block w-full text-sm text-gray-500
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-semibold
+                      file:bg-blue-50 file:text-blue-700
+                      hover:file:bg-blue-100"
+            webkitdirectory="true" 
+            onChange={handleFolderUpload}
+          />
         </div>
-      </div>
-    </div>
-  );
-}
 
-function ResourceCard({
-  title,
-  description,
-  href,
-}: {
-  title: string;
-  description: string;
-  href: string;
-}) {
-  return (
-    <div className="flex flex-col gap-2 bg-slate-200 dark:bg-slate-800 p-4 rounded-md h-28 overflow-auto">
-      <a href={href} className="text-sm underline hover:no-underline">
-        {title}
-      </a>
-      <p className="text-xs">{description}</p>
-    </div>
+        {/* Arborescence des fichiers */}
+        {projectStructure.length > 0 ? (
+          <FileTree 
+            files={projectStructure} 
+            onFileSelect={setSelectedContent} 
+          />
+        ) : (
+          <div className="text-gray-500 text-sm mt-8 text-center">
+            <p>Upload un dossier pour commencer</p>
+            <p className="mt-2">(Chrome/Edge uniquement)</p>
+          </div>
+        )}
+      </div>
+      
+      {/* Panneau droit - Éditeur et évaluation */}
+      <div className="flex-1 p-4 bg-gray-100">
+        <ReactFileEvaluator 
+          initialContent={selectedContent} 
+        />
+      </div>
+    </main>
   );
 }
