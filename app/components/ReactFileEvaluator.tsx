@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "convex/react";
 import styles from "./ReactFileEvaluator.module.css";
 
-export default function ReactFileEvaluator() {
-  const [selectedContent, setSelectedContent] = useState("");
+interface ReactFileEvaluatorProps {
+  initialContent: string;
+}
+
+export default function ReactFileEvaluator({ initialContent }: ReactFileEvaluatorProps) {
+  const [selectedContent, setSelectedContent] = useState(initialContent);
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const evaluateReactFile = useMutation("evaluateReactFile");
+
+  // Mettre à jour le contenu quand initialContent change
+  useEffect(() => {
+    setSelectedContent(initialContent);
+  }, [initialContent]);
 
   const handleSubmit = async () => {
     if (!selectedContent) return;

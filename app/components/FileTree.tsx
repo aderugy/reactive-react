@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { File, Folder, ChevronRight, ChevronDown } from "lucide-react";
 
-type FileNode = {
+export type FileNode = {
   id: string;
   name: string;
   type: "folder" | "file";
@@ -16,7 +16,7 @@ const FileTree = ({
   onFileSelect 
 }: { 
   files: FileNode[]; 
-  onFileSelect: (content: string) => void 
+  onFileSelect: (content: string, fileName?: string) => void 
 }) => {
   return (
     <div className="font-mono text-sm">
@@ -32,7 +32,7 @@ const TreeNode = ({
   onFileSelect 
 }: { 
   node: FileNode; 
-  onFileSelect: (content: string) => void 
+  onFileSelect: (content: string, fileName?: string) => void 
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -40,7 +40,7 @@ const TreeNode = ({
     if (node.type === "folder") {
       setIsExpanded(!isExpanded);
     } else {
-      onFileSelect(node.content || "");
+      onFileSelect(node.content || "", node.name);
     }
   };
 

@@ -8,6 +8,7 @@ import { FileNode } from "@/components/FileTree"; // Assurez-vous d'exporter le 
 export default function Home() {
   const [projectStructure, setProjectStructure] = useState<FileNode[]>([]);
   const [selectedContent, setSelectedContent] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
 
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -15,6 +16,11 @@ export default function Home() {
 
     const structure = await parseFolderStructure(files);
     setProjectStructure(structure);
+  };
+
+  const handleFileSelect = (content: string, fileName?: string) => {
+    setSelectedContent(content);
+    setSelectedFileName(fileName || "");
   };
 
   const parseFolderStructure = async (fileList: FileList): Promise<FileNode[]> => {
@@ -94,7 +100,7 @@ export default function Home() {
         {projectStructure.length > 0 ? (
           <FileTree 
             files={projectStructure} 
-            onFileSelect={setSelectedContent} 
+            onFileSelect={handleFileSelect} 
           />
         ) : (
           <div className="text-gray-500 text-sm mt-8 text-center">
@@ -106,6 +112,11 @@ export default function Home() {
       
       {/* Panneau droit - Éditeur et évaluation */}
       <div className="flex-1 p-4 bg-gray-100">
+        {selectedFileName && (
+          <div className="mb-2 text-sm text-gray-600">
+            Fichier sélectionné: <span className="font-semibold">{selectedFileName}</span>
+          </div>
+        )}
         <ReactFileEvaluator 
           initialContent={selectedContent} 
         />
